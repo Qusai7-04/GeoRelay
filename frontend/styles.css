@@ -387,5 +387,16 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* ASCII Table */
-.ascii-table{color:#e2e8f0;white-space:pre;line-height:1.3;margin:8px 0;}
+/* ASCII Table & Terminal Blocks */
+.ascii-table{
+  color:#e2e8f0;white-space:pre;line-height:1.4;margin:4px 0 8px;
+  font-family:var(--mono);font-size:13px;
+  background:transparent;border:none;padding:0;overflow-x:auto;
+}
+.term-block{
+  color:#ccc;white-space:pre-wrap;line-height:1.5;margin:4px 0 8px;
+  font-family:var(--mono);font-size:13px;
+  background:transparent;border:none;padding:0;
+}
+.term-err{color:#f87171 !important;}
+.term-dim{color:#666 !important;font-style:italic;}

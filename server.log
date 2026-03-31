@@ -106,3 +106,107 @@
 2026-03-31 15:22:20,397 INFO auth_ok user=Qusai123 remote=127.0.0.1:53189 session=19
 2026-03-31 15:22:37,717 INFO admin_dump sent to ('127.0.0.1', 53189)
 2026-03-31 15:23:13,483 INFO admin_dump sent to ('127.0.0.1', 53189)
+2026-03-31 16:07:35,399 INFO connection open
+2026-03-31 16:07:35,414 INFO connection_open remote=127.0.0.1:54306
+2026-03-31 16:07:35,628 INFO auth_ok user=Qusai123 remote=127.0.0.1:54306 session=20
+2026-03-31 16:07:39,518 INFO admin_dump sent to ('127.0.0.1', 54306)
+2026-03-31 16:07:52,873 INFO connection_finalize remote=127.0.0.1:54306
+2026-03-31 16:07:52,874 INFO connection closed
+2026-03-31 16:07:54,138 INFO connection_finalize remote=127.0.0.1:53056
+2026-03-31 16:07:54,139 INFO connection closed
+2026-03-31 16:07:54,689 INFO connection_finalize remote=127.0.0.1:53189
+2026-03-31 16:07:54,690 INFO connection closed
+2026-03-31 16:09:15,925 INFO connection open
+2026-03-31 16:09:15,925 INFO connection_open remote=127.0.0.1:54356
+2026-03-31 16:09:16,437 INFO register_ok user=Krish123 remote=127.0.0.1:54356 session=21
+2026-03-31 16:09:42,266 INFO connection open
+2026-03-31 16:09:42,267 INFO connection_open remote=127.0.0.1:54390
+2026-03-31 16:09:42,670 INFO register_ok user=Saurabh123 remote=127.0.0.1:54390 session=22
+2026-03-31 16:09:56,918 INFO connection open
+2026-03-31 16:09:56,919 INFO connection_open remote=127.0.0.1:54394
+2026-03-31 16:09:57,169 INFO auth_ok user=Qusai123 remote=127.0.0.1:54394 session=23
+2026-03-31 16:10:11,463 INFO connection open
+2026-03-31 16:10:11,463 INFO connection_open remote=127.0.0.1:54398
+2026-03-31 16:10:11,696 INFO auth_ok user=Saksham123 remote=127.0.0.1:54398 session=24
+2026-03-31 16:13:37,784 INFO admin_dump sent to ('127.0.0.1', 54356)
+2026-03-31 16:15:59,723 INFO admin_dump sent to ('127.0.0.1', 54394)
+2026-03-31 17:39:02,866 INFO connection_finalize remote=127.0.0.1:54356
+2026-03-31 17:39:02,892 INFO connection closed
+2026-03-31 17:39:03,444 INFO connection_finalize remote=127.0.0.1:54390
+2026-03-31 17:39:03,445 INFO connection closed
+2026-03-31 17:39:03,943 INFO connection_finalize remote=127.0.0.1:54394
+2026-03-31 17:39:03,944 INFO connection closed
+2026-03-31 17:39:06,127 INFO connection_finalize remote=127.0.0.1:54398
+2026-03-31 17:39:06,128 INFO connection closed
+2026-03-31 17:39:31,833 INFO connection open
+2026-03-31 17:39:31,835 INFO connection_open remote=127.0.0.1:56424
+2026-03-31 17:39:32,051 INFO auth_ok user=Qusai123 remote=127.0.0.1:56424 session=25
+2026-03-31 17:41:03,363 INFO connection open
+2026-03-31 17:41:03,364 INFO connection_open remote=127.0.0.1:56457
+2026-03-31 17:41:10,741 INFO connection open
+2026-03-31 17:41:10,742 INFO connection_open remote=127.0.0.1:56459
+2026-03-31 17:41:12,285 INFO connection open
+2026-03-31 17:41:12,286 INFO connection_open remote=127.0.0.1:56460
+2026-03-31 17:41:19,725 INFO connection open
+2026-03-31 17:41:19,725 INFO connection_open remote=127.0.0.1:56462
+2026-03-31 17:41:55,420 INFO connection open
+2026-03-31 17:41:55,421 INFO connection_open remote=127.0.0.1:56469
+2026-03-31 17:41:59,531 INFO connection open
+2026-03-31 17:41:59,532 INFO connection_open remote=127.0.0.1:56470
+2026-03-31 17:41:59,680 INFO auth_ok user=Saksham123 remote=127.0.0.1:56470 session=26
+2026-03-31 17:42:13,564 INFO connection open
+2026-03-31 17:42:13,564 INFO connection_open remote=127.0.0.1:56472
+2026-03-31 17:42:13,709 INFO auth_ok user=Krish123 remote=127.0.0.1:56472 session=27
+2026-03-31 17:42:24,899 INFO connection open
+2026-03-31 17:42:24,900 INFO connection_open remote=127.0.0.1:56477
+2026-03-31 17:42:25,058 INFO auth_ok user=Saurabh123 remote=127.0.0.1:56477 session=28
+2026-03-31 17:50:56,545 INFO admin_dump sent to ('127.0.0.1', 56477)
+2026-03-31 17:51:07,653 INFO connection_finalize remote=127.0.0.1:56477
+2026-03-31 17:51:07,657 INFO connection closed
+2026-03-31 17:51:09,651 INFO connection_finalize remote=127.0.0.1:56472
+2026-03-31 17:51:09,651 INFO connection closed
+2026-03-31 17:51:11,431 INFO connection_finalize remote=127.0.0.1:56470
+2026-03-31 17:51:11,431 INFO connection closed
+2026-03-31 17:51:13,300 INFO connection_finalize remote=127.0.0.1:56424
+2026-03-31 17:51:13,300 INFO connection closed
+2026-03-31 18:18:30,530 INFO connection_finalize remote=127.0.0.1:56460
+2026-03-31 18:18:30,556 INFO connection_finalize remote=127.0.0.1:56457
+2026-03-31 18:18:30,557 INFO connection_finalize remote=127.0.0.1:56462
+2026-03-31 18:18:30,558 INFO connection_finalize remote=127.0.0.1:56459
+2026-03-31 18:18:30,559 INFO connection_finalize remote=127.0.0.1:56469
+2026-03-31 18:18:30,560 INFO connection closed
+2026-03-31 18:18:30,561 INFO connection closed
+2026-03-31 18:18:30,562 INFO connection closed
+2026-03-31 18:18:30,562 INFO connection closed
+2026-03-31 18:18:30,563 INFO connection closed
+2026-03-31 19:59:28,930 INFO connection open
+2026-03-31 19:59:29,008 INFO connection_open remote=127.0.0.1:61005
+2026-03-31 19:59:52,614 INFO connection open
+2026-03-31 19:59:52,615 INFO connection_open remote=127.0.0.1:61010
+2026-03-31 19:59:54,013 INFO register_ok user=testuser01 remote=127.0.0.1:61010 session=29
+2026-03-31 20:00:03,844 INFO admin_dump sent to ('127.0.0.1', 61010)
+2026-03-31 20:04:21,075 INFO connection_finalize remote=127.0.0.1:61010
+2026-03-31 20:04:21,127 INFO connection_finalize remote=127.0.0.1:61005
+2026-03-31 20:04:21,130 INFO connection closed
+2026-03-31 20:04:21,132 INFO connection closed
+2026-03-31 20:04:39,999 INFO connection open
+2026-03-31 20:04:40,004 INFO connection_open remote=127.0.0.1:61161
+2026-03-31 20:04:40,796 INFO auth_ok user=testuser01 remote=127.0.0.1:61161 session=30
+2026-03-31 20:04:51,272 INFO admin_dump sent to ('127.0.0.1', 61161)
+2026-03-31 20:06:28,990 INFO connection_finalize remote=127.0.0.1:61161
+2026-03-31 20:06:28,994 INFO connection closed
+2026-03-31 20:09:48,460 INFO connection open
+2026-03-31 20:09:48,467 INFO connection_open remote=127.0.0.1:61333
+2026-03-31 20:09:48,752 INFO auth_ok user=Qusai123 remote=127.0.0.1:61333 session=31
+2026-03-31 20:09:50,907 INFO admin_dump sent to ('127.0.0.1', 61333)
+2026-03-31 20:10:32,638 INFO admin_dump sent to ('127.0.0.1', 61333)
+2026-03-31 20:10:47,640 INFO admin_dump sent to ('127.0.0.1', 61333)
+2026-03-31 20:11:00,068 INFO connection open
+2026-03-31 20:11:00,082 INFO connection_open remote=127.0.0.1:61376
+2026-03-31 20:11:00,969 INFO auth_ok user=testuser01 remote=127.0.0.1:61376 session=32
+2026-03-31 20:11:07,932 INFO admin_dump sent to ('127.0.0.1', 61333)
+2026-03-31 20:11:14,936 INFO admin_dump sent to ('127.0.0.1', 61376)
+2026-03-31 20:11:16,381 INFO admin_dump sent to ('127.0.0.1', 61333)
+2026-03-31 20:11:35,922 INFO admin_dump sent to ('127.0.0.1', 61376)
+2026-03-31 20:11:45,928 INFO admin_dump sent to ('127.0.0.1', 61376)
+2026-03-31 20:12:04,171 INFO admin_dump sent to ('127.0.0.1', 61376)

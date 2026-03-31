@@ -36,6 +36,7 @@
     latencies: [],
     lastSendTs: null,
     terminalWaitingForDump: false,
+    terminalPendingQuery: null,
     // Latency tracking: we record the time when we send each seq
     sendTimestamps: {},    // { seq: timestamp_ms }
   };
@@ -168,13 +169,19 @@
         handleBroadcast(d); break;
       case "admin_dump_ok":
         S.dbTables = d.tables;
-        S.terminalWaitingForDump = false;
-        renderTerminalSnapshot();
+        if (S.terminalWaitingForDump) {
+          S.terminalWaitingForDump = false;
+          if (S.terminalPendingQuery) {
+            executeTerminalQuery(S.terminalPendingQuery);
+            S.terminalPendingQuery = null;
+          }
+        }
         break;
       case "error":
         if (S.terminalWaitingForDump && typeof d.message === "string" && d.message.includes("Admin dump failed")) {
           S.terminalWaitingForDump = false;
-          terminalPrint(`<div class="term-line" style="color:#f87171">ERROR: ${d.message}</div>`);
+          S.terminalPendingQuery = null;
+          terminalPrint(`<div class="term-line term-err">ERROR: ${d.message}</div>`);
         }
         log(`⚠️ ${d.message}`, "err"); break;
       default:
@@ -751,18 +758,21 @@
   const termBody = $("#term-body");
   const termTyped = $("#term-typed");
   const termOut = $("#term-output");
+  const termHistory = [];   // command history
+  let termHistIdx = -1;
 
   function openTerminal() {
     termOverlay.classList.add("active");
     termOut.innerHTML = "";
-    termTyped.focus();
-    if (S.ws && S.ws.readyState === WebSocket.OPEN) {
-      requestAdminDump();
-    } else {
-      terminalPrint(`<div class="term-line" style="color:#f87171">ERROR: WebSocket is not connected.</div>`);
+    termTyped.value = "";
+    S.terminalPendingQuery = null;
+    setTimeout(() => { termTyped.focus(); termBody.scrollTop = termBody.scrollHeight; }, 50);
+
+    // Silently pre-fetch the DB snapshot in background so queries are instant
+    if (S.ws && S.ws.readyState === WebSocket.OPEN && !S.dbTables) {
+      S.terminalWaitingForDump = true;
+      send({ type: "admin_dump" });
     }
-    // Set scroll to bottom
-    setTimeout(() => termBody.scrollTop = termBody.scrollHeight, 10);
   }
 
   function closeTerminal() {
@@ -775,28 +785,21 @@
     termOut.appendChild(div);
     termBody.scrollTop = termBody.scrollHeight;
   }
-  function requestAdminDump() {
+
+  function requestAdminDump(pendingQuery) {
     S.terminalWaitingForDump = true;
-    terminalPrint(`<div class="term-line">Loading live database snapshot...</div>`);
+    S.terminalPendingQuery = pendingQuery || null;
     send({ type: "admin_dump" });
   }
 
-  function renderTerminalSnapshot() {
-    if (!termOverlay.classList.contains("active")) return;
-    terminalPrint(`<div class="term-line">Snapshot refreshed.</div>`);
-    const tables = S.dbTables ? Object.keys(S.dbTables).map(t => ({ "Tables_in_webrtc_app": t })) : [];
-    terminalPrint(formatAsciiTable(tables));
-    ["Users", "Sessions", "Locations", "Logs"].forEach((table) => {
-      terminalPrint(`<div class="term-line"><span class="term-prompt">mysql></span> select * from ${table};</div>`);
-      terminalPrint(formatAsciiTable((S.dbTables && S.dbTables[table]) || []));
-    });
-  }
-
+  // Build a proper ASCII table string from an array of row-objects
   function formatAsciiTable(data) {
-    if (!data || !data.length) return "Empty set (0.00 sec)";
+    if (!data || !data.length) {
+      return `<pre class="ascii-table">Empty set (0.00 sec)</pre>`;
+    }
     const keys = Object.keys(data[0]);
 
-    // Find max width for each column
+    // Compute max column widths (cap at 40 chars to prevent huge widths)
     const colWidths = {};
     keys.forEach(k => {
       let max = k.length;
@@ -804,90 +807,228 @@
         const val = row[k] === null ? "NULL" : String(row[k]);
         if (val.length > max) max = val.length;
       });
-      colWidths[k] = max;
+      colWidths[k] = Math.min(max, 48);
     });
 
-    let separator = "+";
-    keys.forEach(k => separator += "-".repeat(colWidths[k] + 2) + "+");
+    // Build separator line
+    let sep = "+";
+    keys.forEach(k => { sep += "-".repeat(colWidths[k] + 2) + "+"; });
 
-    let header = "|";
-    keys.forEach(k => header += " " + k.padEnd(colWidths[k], " ") + " |");
+    // Build header line
+    let hdr = "|";
+    keys.forEach(k => { hdr += " " + k.padEnd(colWidths[k]) + " |"; });
 
-    let rowsStr = "";
-    data.forEach(row => {
+    // Build data rows
+    const rows = data.map(row => {
       let r = "|";
       keys.forEach(k => {
-        const val = row[k] === null ? "NULL" : String(row[k]);
-        r += " " + val.padEnd(colWidths[k], " ") + " |";
+        let val = row[k] === null ? "NULL" : String(row[k]);
+        if (val.length > colWidths[k]) val = val.substring(0, colWidths[k] - 1) + "…";
+        r += " " + val.padEnd(colWidths[k]) + " |";
       });
-      rowsStr += r + "\\n";
+      return r;
     });
 
-    return `<div class="ascii-table">${separator}\\n${header}\\n${separator}\\n${rowsStr}${separator}\\n${data.length} rows in set (0.00 sec)</div>`;
+    // Assemble with REAL newlines inside a <pre> tag
+    const lines = [sep, hdr, sep, ...rows, sep];
+    const tableText = lines.join("\n");
+    const footer = `${data.length} row${data.length !== 1 ? "s" : ""} in set (0.00 sec)`;
+
+    return `<pre class="ascii-table">${escapeHtml(tableText)}\n${footer}</pre>`;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function executeTerminalQuery(queryKey) {
+    if (queryKey === "show_tables") {
+      const tables = S.dbTables ? Object.keys(S.dbTables).map(t => ({ "Tables_in_webrtc_app": t })) : [];
+      terminalPrint(formatAsciiTable(tables));
+    } else if (queryKey.startsWith("select:")) {
+      const key = queryKey.split("select:")[1];
+      const tableKey = Object.keys(S.dbTables || {}).find(k => k.toLowerCase() === key.toLowerCase());
+      if (tableKey) {
+        terminalPrint(formatAsciiTable(S.dbTables[tableKey]));
+      } else {
+        terminalPrint(`<div class="term-line term-err">ERROR 1146 (42S02): Table 'webrtc_app.${key}' doesn't exist</div>`);
+      }
+    }
   }
 
   function handleTerminalCommand(cmd) {
     const raw = cmd.trim();
-    const c = raw.toLowerCase().replace(/;$/, ""); // remove trailing semicolon
+    if (!raw) return;
 
-    terminalPrint(`<div class="term-line"><span class="term-prompt">mysql></span> ${raw}</div>`);
+    // Save to history
+    termHistory.push(raw);
+    termHistIdx = termHistory.length;
 
-    if (!c) return;
+    const c = raw.toLowerCase().replace(/;\s*$/, ""); // strip trailing semicolon
+
+    // Echo the command with prompt
+    terminalPrint(`<div class="term-line"><span class="term-prompt">mysql&gt;</span> ${escapeHtml(raw)}</div>`);
+
+    // ── clear ──
     if (c === "clear") {
       termOut.innerHTML = "";
       return;
     }
 
+    // ── use database ──
     if (c === "use webrtc_app" || c === "use georelay") {
-      terminalPrint(`<div class="term-line">Database changed</div>`);
+      terminalPrint(`<pre class="term-block">Reading table information for completion of table and column names\nYou can turn off this feature to get a quicker startup with -A\n\nDatabase changed</pre>`);
+      // Auto-refresh data when switching DB
+      if (S.ws && S.ws.readyState === WebSocket.OPEN) {
+        requestAdminDump();
+      }
       return;
     }
 
+    // ── show tables ──
     if (c === "show tables") {
       if (!S.dbTables) {
-        requestAdminDump();
+        requestAdminDump("show_tables");
+        terminalPrint(`<div class="term-line term-dim">Fetching data…</div>`);
         return;
       }
-      const tables = S.dbTables ? Object.keys(S.dbTables).map(t => ({ "Tables_in_webrtc_app": t })) : [];
-      terminalPrint(formatAsciiTable(tables));
+      executeTerminalQuery("show_tables");
       return;
     }
 
-    if (c.startsWith("select * from ")) {
-      const table = c.split("select * from ")[1].trim().toLowerCase();
+    // ── select * from <table> ──
+    const selectMatch = c.match(/^select\s+\*\s+from\s+(\w+)$/);
+    if (selectMatch) {
+      const table = selectMatch[1];
       if (!S.dbTables) {
-        terminalPrint(`<div class="term-line" style="color:#f87171">ERROR: Database not loaded. Ensure you're connected.</div>`);
+        requestAdminDump(`select:${table}`);
+        terminalPrint(`<div class="term-line term-dim">Fetching data…</div>`);
         return;
       }
-      // Match case-insensitive
-      const key = Object.keys(S.dbTables).find(k => k.toLowerCase() === table);
-      if (key) {
-        terminalPrint(formatAsciiTable(S.dbTables[key]));
+      // Always refresh data for fresh results
+      requestAdminDump(`select:${table}`);
+      return;
+    }
+
+    // ── describe / desc ──
+    const descMatch = c.match(/^(?:describe|desc)\s+(\w+)$/);
+    if (descMatch) {
+      const tblName = descMatch[1].toLowerCase();
+      const schemas = {
+        users: [
+          { Field: "id", Type: "INTEGER", Null: "NO", Key: "PRI", Default: "NULL", Extra: "auto_increment" },
+          { Field: "username", Type: "TEXT", Null: "NO", Key: "UNI", Default: "NULL", Extra: "" },
+          { Field: "password_salt", Type: "BLOB", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "password_hash", Type: "BLOB", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "created_at", Type: "TEXT", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+        ],
+        sessions: [
+          { Field: "id", Type: "INTEGER", Null: "NO", Key: "PRI", Default: "NULL", Extra: "auto_increment" },
+          { Field: "user_id", Type: "INTEGER", Null: "NO", Key: "FK", Default: "NULL", Extra: "" },
+          { Field: "connected_at", Type: "TEXT", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "disconnected_at", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+          { Field: "remote_addr", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+          { Field: "close_reason", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+        ],
+        locations: [
+          { Field: "id", Type: "INTEGER", Null: "NO", Key: "PRI", Default: "NULL", Extra: "auto_increment" },
+          { Field: "user_id", Type: "INTEGER", Null: "NO", Key: "FK", Default: "NULL", Extra: "" },
+          { Field: "session_id", Type: "INTEGER", Null: "NO", Key: "FK", Default: "NULL", Extra: "" },
+          { Field: "latitude", Type: "REAL", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "longitude", Type: "REAL", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "accuracy", Type: "REAL", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+          { Field: "client_ts", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+          { Field: "server_ts", Type: "TEXT", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "seq", Type: "INTEGER", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+        ],
+        logs: [
+          { Field: "id", Type: "INTEGER", Null: "NO", Key: "PRI", Default: "NULL", Extra: "auto_increment" },
+          { Field: "event_ts", Type: "TEXT", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "remote_addr", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+          { Field: "username", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+          { Field: "event_type", Type: "TEXT", Null: "NO", Key: "", Default: "NULL", Extra: "" },
+          { Field: "details", Type: "TEXT", Null: "YES", Key: "", Default: "NULL", Extra: "" },
+        ],
+      };
+      if (schemas[tblName]) {
+        terminalPrint(formatAsciiTable(schemas[tblName]));
       } else {
-        terminalPrint(`<div class="term-line" style="color:#f87171">ERROR 1146 (42S02): Table 'webrtc_app.${table}' doesn't exist</div>`);
+        terminalPrint(`<div class="term-line term-err">ERROR 1146 (42S02): Table 'webrtc_app.${tblName}' doesn't exist</div>`);
       }
       return;
     }
 
-    if (c === "help" || c === "\\h") {
-      terminalPrint(`<div class="term-line">Supported commands for viva: use webrtc_app, show tables, select * from Users, select * from Sessions, select * from Locations, select * from Logs, clear.</div>`);
+    // ── show databases ──
+    if (c === "show databases") {
+      terminalPrint(formatAsciiTable([
+        { Database: "information_schema" },
+        { Database: "mysql" },
+        { Database: "performance_schema" },
+        { Database: "webrtc_app" },
+      ]));
       return;
     }
 
-    terminalPrint(`<div class="term-line" style="color:#f87171">ERROR 1064 (42000): You have an error in your SQL syntax near '${raw}'</div>`);
+    // ── status ──
+    if (c === "status" || c === "\\s") {
+      const uptime = S.connectedAt ? Math.floor((Date.now() - S.connectedAt) / 1000) : 0;
+      terminalPrint(`<pre class="term-block">--------------\nmysql  Ver 8.0.32 for Linux on x86_64 (GeoRelay Data Store)\n\nConnection id:          8\nCurrent database:       webrtc_app\nCurrent user:           ${S.username || "admin"}@localhost\nSSL:                    Not in use\nServer version:         8.0.32 GeoRelay Data Store\nProtocol version:       10\nConnection:             localhost via TCP/IP\nUptime:                 ${uptime} sec\nThreads: 1  Questions: ${S.packetsSent}  Slow queries: 0\n--------------</pre>`);
+      return;
+    }
+
+    // ── help ──
+    if (c === "help" || c === "\\h") {
+      terminalPrint(`<pre class="term-block">List of supported SQL commands:\n\n  use webrtc_app;              Switch to the application database\n  show databases;              Show all databases\n  show tables;                 Show tables in current database\n  describe \u003ctable\u003e;           Show table schema\n  select * from Users;         Display all users\n  select * from Sessions;      Display all sessions\n  select * from Locations;     Display location data (last 50)\n  select * from Logs;          Display security event logs (last 50)\n  status;                      Display server status\n  clear;                       Clear terminal screen\n\nFor more information, visit the project README.</pre>`);
+      return;
+    }
+
+    // ── exit / quit ──
+    if (c === "exit" || c === "quit" || c === "\\q") {
+      terminalPrint(`<div class="term-line">Bye</div>`);
+      setTimeout(closeTerminal, 400);
+      return;
+    }
+
+    // ── Unknown command ──
+    terminalPrint(`<div class="term-line term-err">ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '${escapeHtml(raw)}'</div>`);
   }
 
   termTyped.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const val = termTyped.value.trim();
+      const val = termTyped.value;
       handleTerminalCommand(val);
       termTyped.value = "";
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (termHistory.length > 0 && termHistIdx > 0) {
+        termHistIdx--;
+        termTyped.value = termHistory[termHistIdx];
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (termHistIdx < termHistory.length - 1) {
+        termHistIdx++;
+        termTyped.value = termHistory[termHistIdx];
+      } else {
+        termHistIdx = termHistory.length;
+        termTyped.value = "";
+      }
+    } else if (e.key === "l" && e.ctrlKey) {
+      e.preventDefault();
+      termOut.innerHTML = "";
     }
   });
 
   // Ensure clicking in terminal keeps focus on input
   termBody.addEventListener("click", () => termTyped.focus());
+
+  // Close terminal with Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && termOverlay.classList.contains("active")) {
+      closeTerminal();
+    }
+  });
 
   $("#db-term-btn").addEventListener("click", openTerminal);
   $("#close-term-btn").addEventListener("click", closeTerminal);
