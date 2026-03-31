@@ -35,6 +35,7 @@
     connectedAt: null,
     latencies: [],
     lastSendTs: null,
+    terminalWaitingForDump: false,
     // Latency tracking: we record the time when we send each seq
     sendTimestamps: {},    // { seq: timestamp_ms }
   };
@@ -42,7 +43,7 @@
   const FREQ_MAP = [100, 250, 500, 1000];
   const FREQ_DESC = ["🔥 Stress test (10/sec)", "⚡ Fast (4/sec)", "⚖️ Balanced (2/sec)", "🐢 Relaxed (1/sec)"];
 
-  const COLORS = ["#f97316","#06b6d4","#ec4899","#22c55e","#a855f7","#14b8a6","#f43f5e","#3b82f6","#eab308","#84cc16"];
+  const COLORS = ["#f97316", "#06b6d4", "#ec4899", "#22c55e", "#a855f7", "#14b8a6", "#f43f5e", "#3b82f6", "#eab308", "#84cc16"];
   function colorFor(u) {
     let h = 0;
     for (let i = 0; i < u.length; i++) h = u.charCodeAt(i) + ((h << 5) - h);
@@ -167,8 +168,14 @@
         handleBroadcast(d); break;
       case "admin_dump_ok":
         S.dbTables = d.tables;
+        S.terminalWaitingForDump = false;
+        renderTerminalSnapshot();
         break;
       case "error":
+        if (S.terminalWaitingForDump && typeof d.message === "string" && d.message.includes("Admin dump failed")) {
+          S.terminalWaitingForDump = false;
+          terminalPrint(`<div class="term-line" style="color:#f87171">ERROR: ${d.message}</div>`);
+        }
         log(`⚠️ ${d.message}`, "err"); break;
       default:
         log(`Unknown: ${d.type}`, "warn");
@@ -628,7 +635,7 @@
     $("#activity-log").classList.toggle("collapsed", S.logCollapsed);
     $("#act-log-btn").textContent = S.logCollapsed ? "▸" : "▾";
   });
-  
+
   // Activity log maximize/resize
   $("#act-max-btn").style.display = "none"; // Hide maximize button, replaced by robust resizer below
 
@@ -652,7 +659,7 @@
       const rect = panel.getBoundingClientRect();
       startW = rect.width; startH = rect.height;
       startL = rect.left; startT = rect.top;
-      
+
       panel.style.transition = 'none';
       panel.style.width = startW + 'px';
       panel.style.height = startH + 'px';
@@ -667,26 +674,26 @@
     }
 
     function doResize(e) {
-      if(!resDir) return;
+      if (!resDir) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
 
-      if(resDir.includes('e')) panel.style.width = Math.max(200, startW + dx) + 'px';
-      if(resDir.includes('s')) panel.style.height = Math.max(100, startH + dy) + 'px';
-      if(resDir.includes('w')) {
+      if (resDir.includes('e')) panel.style.width = Math.max(200, startW + dx) + 'px';
+      if (resDir.includes('s')) panel.style.height = Math.max(100, startH + dy) + 'px';
+      if (resDir.includes('w')) {
         const w = Math.max(200, startW - dx);
         panel.style.width = w + 'px';
         panel.style.left = (startL + (startW - w)) + 'px';
       }
-      if(resDir.includes('n')) {
+      if (resDir.includes('n')) {
         const h = Math.max(100, startH - dy);
         panel.style.height = h + 'px';
         panel.style.top = (startT + (startH - h)) + 'px';
       }
-      
+
       // Expand internal log list relative size
       const logList = panel.querySelector('.log-list');
-      if(logList) {
+      if (logList) {
         logList.style.maxHeight = 'calc(100% - 40px)';
       }
     }
@@ -747,9 +754,12 @@
 
   function openTerminal() {
     termOverlay.classList.add("active");
+    termOut.innerHTML = "";
     termTyped.focus();
     if (S.ws && S.ws.readyState === WebSocket.OPEN) {
-      send({ type: "admin_dump" });
+      requestAdminDump();
+    } else {
+      terminalPrint(`<div class="term-line" style="color:#f87171">ERROR: WebSocket is not connected.</div>`);
     }
     // Set scroll to bottom
     setTimeout(() => termBody.scrollTop = termBody.scrollHeight, 10);
@@ -765,11 +775,27 @@
     termOut.appendChild(div);
     termBody.scrollTop = termBody.scrollHeight;
   }
+  function requestAdminDump() {
+    S.terminalWaitingForDump = true;
+    terminalPrint(`<div class="term-line">Loading live database snapshot...</div>`);
+    send({ type: "admin_dump" });
+  }
+
+  function renderTerminalSnapshot() {
+    if (!termOverlay.classList.contains("active")) return;
+    terminalPrint(`<div class="term-line">Snapshot refreshed.</div>`);
+    const tables = S.dbTables ? Object.keys(S.dbTables).map(t => ({ "Tables_in_webrtc_app": t })) : [];
+    terminalPrint(formatAsciiTable(tables));
+    ["Users", "Sessions", "Locations", "Logs"].forEach((table) => {
+      terminalPrint(`<div class="term-line"><span class="term-prompt">mysql></span> select * from ${table};</div>`);
+      terminalPrint(formatAsciiTable((S.dbTables && S.dbTables[table]) || []));
+    });
+  }
 
   function formatAsciiTable(data) {
     if (!data || !data.length) return "Empty set (0.00 sec)";
     const keys = Object.keys(data[0]);
-    
+
     // Find max width for each column
     const colWidths = {};
     keys.forEach(k => {
@@ -783,10 +809,10 @@
 
     let separator = "+";
     keys.forEach(k => separator += "-".repeat(colWidths[k] + 2) + "+");
-    
+
     let header = "|";
     keys.forEach(k => header += " " + k.padEnd(colWidths[k], " ") + " |");
-    
+
     let rowsStr = "";
     data.forEach(row => {
       let r = "|";
@@ -803,26 +829,30 @@
   function handleTerminalCommand(cmd) {
     const raw = cmd.trim();
     const c = raw.toLowerCase().replace(/;$/, ""); // remove trailing semicolon
-    
+
     terminalPrint(`<div class="term-line"><span class="term-prompt">mysql></span> ${raw}</div>`);
-    
+
     if (!c) return;
     if (c === "clear") {
       termOut.innerHTML = "";
       return;
     }
-    
+
     if (c === "use webrtc_app" || c === "use georelay") {
       terminalPrint(`<div class="term-line">Database changed</div>`);
       return;
     }
-    
+
     if (c === "show tables") {
+      if (!S.dbTables) {
+        requestAdminDump();
+        return;
+      }
       const tables = S.dbTables ? Object.keys(S.dbTables).map(t => ({ "Tables_in_webrtc_app": t })) : [];
       terminalPrint(formatAsciiTable(tables));
       return;
     }
-    
+
     if (c.startsWith("select * from ")) {
       const table = c.split("select * from ")[1].trim().toLowerCase();
       if (!S.dbTables) {
@@ -838,12 +868,12 @@
       }
       return;
     }
-    
+
     if (c === "help" || c === "\\h") {
       terminalPrint(`<div class="term-line">Supported commands for viva: use webrtc_app, show tables, select * from Users, select * from Sessions, select * from Locations, select * from Logs, clear.</div>`);
       return;
     }
-    
+
     terminalPrint(`<div class="term-line" style="color:#f87171">ERROR 1064 (42000): You have an error in your SQL syntax near '${raw}'</div>`);
   }
 
@@ -855,7 +885,7 @@
       termTyped.value = "";
     }
   });
-  
+
   // Ensure clicking in terminal keeps focus on input
   termBody.addEventListener("click", () => termTyped.focus());
 

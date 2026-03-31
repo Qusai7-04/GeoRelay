@@ -138,3 +138,48 @@ class Database:
                     """,
                     (user_id, session_id, lat, lon, accuracy, client_ts, utc_now(), seq),
                 )
+
+    def admin_dump(self) -> dict[str, list[dict]]:
+        with self._connect() as conn:
+            users = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT id, username, created_at FROM users ORDER BY id DESC"
+                ).fetchall()
+            ]
+            sessions = [
+                dict(r)
+                for r in conn.execute(
+                    """
+                    SELECT id, user_id, connected_at, disconnected_at, remote_addr, close_reason
+                    FROM sessions
+                    ORDER BY id DESC
+                    """
+                ).fetchall()
+            ]
+            locations = [
+                dict(r)
+                for r in conn.execute(
+                    """
+                    SELECT id, user_id, session_id, latitude, longitude, accuracy, client_ts, server_ts, seq
+                    FROM locations
+                    ORDER BY id DESC
+                    """
+                ).fetchall()
+            ]
+            events = [
+                dict(r)
+                for r in conn.execute(
+                    """
+                    SELECT id, event_ts, remote_addr, username, event_type, details
+                    FROM security_events
+                    ORDER BY id DESC
+                    """
+                ).fetchall()
+            ]
+        return {
+            "Users": users,
+            "Sessions": sessions,
+            "Locations": locations,
+            "Logs": events,
+        }

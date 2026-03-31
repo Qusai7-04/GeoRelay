@@ -47,6 +47,34 @@ class AuthDbTests(unittest.TestCase):
 
         asyncio.run(ops())
 
+    def test_admin_dump_contains_all_tables(self) -> None:
+        self.db.create_user("alice", "secret")
+        user = self.db.authenticate("alice", "secret")
+        self.assertIsNotNone(user)
 
+        async def ops() -> None:
+            sid = await self.db.create_session(user.id, "127.0.0.1:1000")
+            await self.db.store_location(
+                user_id=user.id,
+                session_id=sid,
+                lat=1.0,
+                lon=2.0,
+                accuracy=5.0,
+                client_ts="now",
+                seq=2,
+            )
+            await self.db.log_security_event("127.0.0.1:1000", "alice", "test_event", "ok")
+            await self.db.close_session(sid, "done")
+
+        asyncio.run(ops())
+        dump = self.db.admin_dump()
+        self.assertIn("Users", dump)
+        self.assertIn("Sessions", dump)
+        self.assertIn("Locations", dump)
+        self.assertIn("Logs", dump)
+        self.assertEqual(len(dump["Users"]), 1)
+        self.assertEqual(len(dump["Sessions"]), 1)
+        self.assertEqual(len(dump["Locations"]), 1)
+        self.assertEqual(len(dump["Logs"]), 1)
 if __name__ == "__main__":
     unittest.main()
