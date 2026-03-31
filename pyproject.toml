@@ -1,0 +1,8 @@
+[project]
+name = "tcp-sockhandle"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["websockets==12.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

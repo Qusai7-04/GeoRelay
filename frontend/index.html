@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="GeoRelay — Secure Real-time Location Sharing over WebSockets with live GPS, simulation, and debug tools." />
+  <title>GeoRelay — Real-time Location Sharing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ====== AUTH PAGE ====== -->
+  <div id="auth-page" class="page active">
+    <div class="auth-bg">
+      <div class="bg-orb bg-orb-1"></div>
+      <div class="bg-orb bg-orb-2"></div>
+      <div class="bg-orb bg-orb-3"></div>
+      <div class="bg-grid"></div>
+    </div>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h1>GeoRelay</h1>
+          <p class="auth-subtitle">Secure Real-time Location Sharing</p>
+        </div>
+
+        <!-- Tab Switcher -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Sign In</button>
+          <button class="auth-tab" data-tab="register">Create Account</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form active" autocomplete="off">
+          <div class="input-group">
+            <label for="login-username">Username</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="login-username" placeholder="Enter your username" required />
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="login-password">Password</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="login-password" placeholder="Enter your password" required />
+            </div>
+          </div>
+          <!-- Server URL hidden by default -->
+          <div class="server-toggle">
+            <button type="button" id="show-server-login" class="link-btn">⚙ Advanced: Change Server URL</button>
+          </div>
+          <div class="input-group server-url-group" id="login-server-group" style="display:none;">
+            <label for="login-server">Server URL</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              <input type="text" id="login-server" value="ws://127.0.0.1:8765" />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="login-btn">
+            <span class="btn-text">Connect & Sign In</span>
+            <span class="btn-loader" style="display:none;"><span class="spinner"></span> Connecting...</span>
+          </button>
+          <div id="login-error" class="error-msg" style="display:none;"></div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="auth-form" autocomplete="off">
+          <div class="input-group">
+            <label for="reg-username">Choose Username</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="reg-username" placeholder="Min 8 characters" required minlength="8" />
+            </div>
+            <span class="input-hint">At least 8 characters</span>
+          </div>
+          <div class="input-group">
+            <label for="reg-password">Create Password</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="reg-password" placeholder="Min 8 chars, 1 uppercase, 1 special (@#)" required minlength="8" />
+            </div>
+            <span class="input-hint">Min 8 chars · 1 uppercase (A-Z) · 1 special character (@ or #)</span>
+          </div>
+          <div class="input-group">
+            <label for="reg-password2">Confirm Password</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              <input type="password" id="reg-password2" placeholder="Re-enter your password" required />
+            </div>
+          </div>
+          <!-- Server URL hidden by default -->
+          <div class="server-toggle">
+            <button type="button" id="show-server-reg" class="link-btn">⚙ Advanced: Change Server URL</button>
+          </div>
+          <div class="input-group server-url-group" id="reg-server-group" style="display:none;">
+            <label for="reg-server">Server URL</label>
+            <div class="input-with-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              <input type="text" id="reg-server" value="ws://127.0.0.1:8765" />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="register-btn">
+            <span class="btn-text">Create Account & Connect</span>
+            <span class="btn-loader" style="display:none;"><span class="spinner"></span> Registering...</span>
+          </button>
+          <div id="register-error" class="error-msg" style="display:none;"></div>
+        </form>
+
+        <div class="auth-footer">
+          <span class="security-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            PBKDF2 Encrypted · WebSocket Secured · TCP Optimized
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== DASHBOARD PAGE ====== -->
+  <div id="dashboard-page" class="page">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>GeoRelay</span>
+        </div>
+        <div class="topbar-user">
+          <span class="user-avatar" id="user-avatar">A</span>
+          <span id="topbar-username">user</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div id="conn-status" class="conn-pill conn-disconnected">
+          <span class="conn-dot"></span>
+          <span class="conn-text">Disconnected</span>
+        </div>
+        <button id="debug-toggle-btn" class="top-btn" title="Toggle Debug Panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </button>
+        <button id="sidebar-toggle-btn" class="top-btn" title="Toggle Subscribers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        <button id="db-term-btn" class="top-btn top-btn-text" title="DB Terminal Console">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span class="logout-label">Terminal</span>
+        </button>
+        <button id="logout-btn" class="top-btn top-btn-danger top-btn-text" title="Logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="logout-label">Logout</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Map -->
+    <div id="map" class="map-area"></div>
+
+    <!-- ====== CONTROL PANEL (left floating) ====== -->
+    <div id="control-panel" class="ctrl-panel">
+      <div class="ctrl-header">
+        <h3>📡 Streaming Controls</h3>
+        <button id="ctrl-collapse" class="icon-btn-xs">—</button>
+      </div>
+      <div class="ctrl-body" id="ctrl-body">
+
+        <!-- Mode Selector -->
+        <div class="ctrl-section">
+          <label class="ctrl-label">Streaming Mode</label>
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="gps">🛰️ GPS</button>
+            <button class="mode-tab" data-mode="click">🖱️ Click</button>
+            <button class="mode-tab" data-mode="simulate">🔁 Simulate</button>
+          </div>
+        </div>
+
+        <!-- GPS Mode -->
+        <div class="ctrl-mode-panel active" id="mode-gps">
+          <p class="mode-desc">Stream your real GPS coordinates in real-time using the browser's Geolocation API.</p>
+          <button id="gps-btn" class="action-btn action-btn-start">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Start Live Sharing
+          </button>
+        </div>
+
+        <!-- Click Mode -->
+        <div class="ctrl-mode-panel" id="mode-click">
+          <p class="mode-desc">Click anywhere on the map to instantly send that location to the server. Useful for testing without moving physically.</p>
+          <div class="click-status" id="click-status">
+            <span class="click-dot"></span> Click mode active — tap the map
+          </div>
+        </div>
+
+        <!-- Simulate Mode -->
+        <div class="ctrl-mode-panel" id="mode-simulate">
+          <p class="mode-desc">Auto-generate fake movement along a predefined path. Tests high-frequency updates, server load, and WebSocket buffering under stress.</p>
+          <div class="sim-row">
+            <label>Path:</label>
+            <select id="sim-path">
+              <option value="circle">🔵 Circle (Mumbai)</option>
+              <option value="zigzag">⚡ Zigzag (Delhi)</option>
+              <option value="random">🎲 Random Walk</option>
+              <option value="highway">🛣️ Highway Drive</option>
+            </select>
+          </div>
+          <button id="sim-btn" class="action-btn action-btn-start">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Start Simulation
+          </button>
+        </div>
+
+        <!-- Update Frequency Slider -->
+        <div class="ctrl-section" style="margin-top:12px;">
+          <label class="ctrl-label">⚙️ Update Frequency</label>
+          <div class="freq-slider-wrap">
+            <input type="range" id="freq-slider" min="0" max="3" step="1" value="2" />
+            <div class="freq-labels">
+              <span>100ms</span><span>250ms</span><span>500ms</span><span>1s</span>
+            </div>
+          </div>
+          <div class="freq-current" id="freq-display">Current: <strong>500ms</strong> · <span id="freq-desc">Balanced mode</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== DEBUG PANEL (bottom) ====== -->
+    <div id="debug-panel" class="debug-panel">
+      <div class="debug-header">
+        <span>📊 Debug Panel</span>
+        <button id="debug-close" class="icon-btn-xs">✕</button>
+      </div>
+      <div class="debug-grid">
+        <div class="debug-card">
+          <span class="debug-label">Current Coordinates</span>
+          <span class="debug-value debug-value-sm" id="dbg-coords">—</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">Send Frequency</span>
+          <span class="debug-value" id="dbg-freq">—</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">Packets Sent</span>
+          <span class="debug-value" id="dbg-sent">0</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">Packets Received</span>
+          <span class="debug-value" id="dbg-recv">0</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">Round-Trip Latency</span>
+          <span class="debug-value" id="dbg-latency">—</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">Connection Uptime</span>
+          <span class="debug-value" id="dbg-uptime">—</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">Last Sent At</span>
+          <span class="debug-value debug-value-sm" id="dbg-last-sent">—</span>
+        </div>
+        <div class="debug-card">
+          <span class="debug-label">WebSocket State</span>
+          <span class="debug-value" id="dbg-ws-state">CLOSED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== SIDEBAR (right) ====== -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h3>👥 Subscribers</h3>
+        <button id="sidebar-close-btn" class="icon-btn-xs">✕</button>
+      </div>
+      <div class="sidebar-body">
+        <p class="sidebar-hint">Subscribe to another user's username to see their live location on this map in real-time.</p>
+        <div class="sub-add-form">
+          <input type="text" id="sub-input" placeholder="Username to track..." />
+          <button id="sub-add-btn" class="btn-accent-sm">+ Add</button>
+        </div>
+        <ul id="sub-list" class="sub-list"></ul>
+      </div>
+      <div class="sidebar-footer">
+        <span>Session: <strong id="session-display">—</strong></span>
+      </div>
+    </aside>
+
+    <!-- ====== ACTIVITY LOG (bottom-left) ====== -->
+    <div id="activity-log" class="act-log">
+      <div class="act-log-header" id="act-log-toggle">
+        <span>📋 Activity Log</span>
+        <div class="act-log-actions">
+          <button class="icon-btn-xs" id="act-max-btn" title="Maximize/Restore">⤢</button>
+          <button class="icon-btn-xs" id="act-log-btn" title="Collapse/Expand">▾</button>
+        </div>
+      </div>
+      <ul id="log-list" class="log-list"></ul>
+    </div>
+
+  </div>
+
+  <!-- ====== DB TERMINAL PAGE ====== -->
+  <div id="db-terminal-page" class="terminal-overlay">
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <div class="term-dots"><i></i><i></i><i></i></div>
+        <div class="term-title">mysql -h localhost -u admin webrtc_app</div>
+        <button id="close-term-btn" class="icon-btn-xs term-close">✕</button>
+      </div>
+      <div class="terminal-body" id="term-body" tabindex="0">
+        <div class="term-line">Welcome to the MySQL monitor.  Commands end with ; or \g.</div>
+        <div class="term-line">Your MySQL connection id is 8</div>
+        <div class="term-line">Server version: 8.0.32 GeoRelay Data Store</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line">Copyright (c) 2000, 2026, Oracle and/or its affiliates.</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line">Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.</div>
+        <div class="term-line">&nbsp;</div>
+        
+        <div id="term-output"></div>
+        
+        <div class="term-input-line">
+          <span class="term-prompt">mysql&gt;</span>
+          <input type="text" id="term-typed" class="term-native-input" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
