@@ -44,7 +44,7 @@
   const FREQ_MAP = [100, 250, 500, 1000];
   const FREQ_DESC = ["🔥 Stress test (10/sec)", "⚡ Fast (4/sec)", "⚖️ Balanced (2/sec)", "🐢 Relaxed (1/sec)"];
 
-  const COLORS = ["#f97316", "#06b6d4", "#ec4899", "#22c55e", "#a855f7", "#14b8a6", "#f43f5e", "#3b82f6", "#eab308", "#84cc16"];
+  const COLORS = ["#C8FF00", "#00D2FF", "#5D3FD3", "#FFAB40", "#FF3B30", "#B8E600", "#A8D600", "#00D2FF", "#FFAB40", "#5D3FD3"];
   function colorFor(u) {
     let h = 0;
     for (let i = 0; i < u.length; i++) h = u.charCodeAt(i) + ((h << 5) - h);
@@ -248,7 +248,7 @@
   }
 
   function updateSelfMarker(lat, lon, accuracy) {
-    const icon = getIcon("#6366f1", true);
+    const icon = getIcon("#C8FF00", true);
     if (!S.selfMarker) {
       S.selfMarker = L.marker([lat, lon], { icon, zIndexOffset: 1000 }).addTo(S.map);
       S.selfMarker.bindPopup(selfPopup(lat, lon, accuracy));

@@ -133,29 +133,12 @@ class LocationServer:
 
     async def handle_admin_dump(self, ws: WebSocketServerProtocol) -> None:
         try:
-            with self.db._connect() as conn:
-                users = [dict(r) for r in conn.execute("SELECT id, username, password_hash, created_at FROM users").fetchall()]
-                sessions = [dict(r) for r in conn.execute("SELECT id, user_id, connected_at, disconnected_at, remote_addr, close_reason FROM sessions").fetchall()]
-                locations = [dict(r) for r in conn.execute("SELECT id, user_id, latitude, longitude, accuracy, server_ts, seq FROM locations ORDER BY id DESC LIMIT 50").fetchall()]
-                events = [dict(r) for r in conn.execute("SELECT * FROM security_events ORDER BY id DESC LIMIT 50").fetchall()]
-            
-            # Format hash bytes as hex string for JSON serialization
-            for u in users:
-                if isinstance(u.get("password_hash"), bytes):
-                    u["password_hash"] = u["password_hash"].hex()
-                    
-            await ws.send(json.dumps({
-                "type": "admin_dump_ok",
-                "tables": {
-                    "Users": users,
-                    "Sessions": sessions,
-                    "Locations": locations,
-                    "Logs": events
-                }
-            }))
+            tables = self.db.admin_dump()
+            payload = {"type": "admin_dump_ok", "tables": tables}
+            await ws.send(json.dumps(payload))
             logging.info("admin_dump sent to %s", ws.remote_address)
-        except Exception as e:
-            await ws.send(json.dumps({"type": "error", "message": f"Admin dump failed: {e}"}))
+        except Exception as exc:
+            await ws.send(json.dumps({"type": "error", "message": f"Admin dump failed: {exc}"}))
 
     async def handle_auth(self, ws: WebSocketServerProtocol, payload: dict, remote_addr: str) -> None:
         username = payload.get("username")
