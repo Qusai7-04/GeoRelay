@@ -8,7 +8,7 @@ import ssl
 from datetime import datetime, timezone
 
 from websockets.exceptions import ConnectionClosed
-from websockets.server import WebSocketServerProtocol, serve
+from websockets.asyncio.server import ServerConnection, serve
 
 from app.config import ServerConfig
 from app.connection_manager import ConnectionManager
@@ -70,7 +70,7 @@ class LocationServer:
             logging.info("Server started on %s:%s", self.cfg.host, self.cfg.port)
             await asyncio.Future()
 
-    async def handle_connection(self, ws: WebSocketServerProtocol) -> None:
+    async def handle_connection(self, ws: ServerConnection) -> None:
         remote = getattr(ws, "remote_address", None)
         remote_addr = f"{remote[0]}:{remote[1]}" if remote else "unknown"
         state = await self.manager.register(ws)
@@ -89,7 +89,7 @@ class LocationServer:
                 await self.db.close_session(final_state.session_id, "disconnect")
             logging.info("connection_finalize remote=%s", remote_addr)
 
-    async def handle_message(self, ws: WebSocketServerProtocol, raw: str, remote_addr: str) -> None:
+    async def handle_message(self, ws: ServerConnection, raw: str, remote_addr: str) -> None:
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError:
@@ -131,7 +131,7 @@ class LocationServer:
 
         await ws.send(json.dumps({"type": "error", "message": f"Unknown message type: {message_type}"}))
 
-    async def handle_admin_dump(self, ws: WebSocketServerProtocol) -> None:
+    async def handle_admin_dump(self, ws: ServerConnection) -> None:
         try:
             tables = self.db.admin_dump()
             payload = {"type": "admin_dump_ok", "tables": tables}
@@ -140,7 +140,7 @@ class LocationServer:
         except Exception as exc:
             await ws.send(json.dumps({"type": "error", "message": f"Admin dump failed: {exc}"}))
 
-    async def handle_auth(self, ws: WebSocketServerProtocol, payload: dict, remote_addr: str) -> None:
+    async def handle_auth(self, ws: ServerConnection, payload: dict, remote_addr: str) -> None:
         username = payload.get("username")
         password = payload.get("password")
         if not isinstance(username, str) or not isinstance(password, str):
@@ -158,7 +158,7 @@ class LocationServer:
         await ws.send(json.dumps({"type": "auth_ok", "username": user.username, "session_id": session_id}))
         logging.info("auth_ok user=%s remote=%s session=%s", user.username, remote_addr, session_id)
 
-    async def handle_register(self, ws: WebSocketServerProtocol, payload: dict, remote_addr: str) -> None:
+    async def handle_register(self, ws: ServerConnection, payload: dict, remote_addr: str) -> None:
         username = payload.get("username")
         password = payload.get("password")
         if not isinstance(username, str) or not isinstance(password, str):
@@ -191,7 +191,7 @@ class LocationServer:
         await ws.send(json.dumps({"type": "register_ok", "username": user.username, "session_id": session_id}))
         logging.info("register_ok user=%s remote=%s session=%s", user.username, remote_addr, session_id)
 
-    async def handle_location_update(self, ws: WebSocketServerProtocol, payload: dict) -> None:
+    async def handle_location_update(self, ws: ServerConnection, payload: dict) -> None:
         state = await self.manager.state_for(ws)
         lat = payload.get("lat")
         lon = payload.get("lon")
